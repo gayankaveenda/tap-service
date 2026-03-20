@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  postgres17:
+    image: postgres:17
+    container_name: pg17-dev
+    restart: "no"
+    environment:
+      POSTGRES_USER: devuser
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: devdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg17data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devuser -d devdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg17data:
