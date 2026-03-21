@@ -10,18 +10,18 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: create
     show-sql: false
     properties:
       hibernate:
-        default_schema: tappay
+        default_schema: tap-service
         format_sql: true
         jdbc:
           time_zone: UTC
 
   flyway:
     enabled: true
-    schemas: tappay
+    schemas: tap-service-test
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: true
@@ -71,9 +71,8 @@ springdoc:
 logging:
   level:
     org.springframework.web: INFO
-    au.com.rdti.northstar: DEBUG
     org.flywaydb: INFO
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: error
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
 info:
@@ -81,5 +80,7 @@ info:
     name: Tap & Go API
     version: 1.0.0
     owner: GK Corp
-    ingestion:
-      batch-size: 100
+
+app:
+  ingestion:
+    batch-size: 100

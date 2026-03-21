@@ -12,6 +12,7 @@ public record IngestionResponse(
         int totalFiles,
         int totalSaved,
         int totalFailed,
+        int totalDuplicates,
         boolean isFullySuccessful,
         boolean isPartiallySuccessful,
 //        List<IngestionSummary> summaries,
@@ -23,14 +24,15 @@ public record IngestionResponse(
                 summaries.stream().mapToInt(IngestionSummary::getSavedRows).sum(),
                 summaries.stream().mapToInt(IngestionSummary::getFailedRows).sum(),
 //                summaries,
-                    summaries.stream().allMatch(IngestionSummary::isFullSuccess),
-                    summaries.stream().anyMatch(IngestionSummary::isFullSuccess) && summaries.stream().anyMatch(s -> !s.isFullSuccess()),
+                summaries.stream().mapToInt(IngestionSummary::getSkippedRows).sum(),
+                summaries.stream().allMatch(IngestionSummary::isFullSuccess),
+                summaries.stream().anyMatch(IngestionSummary::isFullSuccess) && summaries.stream().anyMatch(s -> !s.isFullSuccess()),
                 null
         );
     }
 
     public static IngestionResponse error(String msg) {
 //        return new IngestionResponse(0, 0, 0, List.of(), msg);
-        return new IngestionResponse(0, 0, 0, false, false, msg);
+        return new IngestionResponse(0, 0, 0, 0,false, false, msg);
     }
 }

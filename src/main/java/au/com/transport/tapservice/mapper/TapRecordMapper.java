@@ -26,7 +26,7 @@ public class TapRecordMapper {
 
         TapEvent record = new TapEvent();
 
-        record.setId(csv.getId());
+        record.setOriginalId(csv.getId());
         record.setTappedAt(parseDateTime(csv.getDateTimeUTC(), sourceFile, rowNumber));
         record.setTapType(getTapType(csv, sourceFile, rowNumber));
         record.setStopId(csv.getStopId());

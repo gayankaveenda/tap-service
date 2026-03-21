@@ -26,8 +26,7 @@ import java.time.LocalDateTime;
 public class TapEvent {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "tap_event_seq")
-    @SequenceGenerator(name = "tap_event_seq", sequenceName = "tap_event_seq", allocationSize = 100)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "original_id", nullable = false)
