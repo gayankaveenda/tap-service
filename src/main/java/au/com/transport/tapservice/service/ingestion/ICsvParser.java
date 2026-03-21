@@ -1,6 +1,6 @@
-package au.com.transport.tapservice.service;
+package au.com.transport.tapservice.service.ingestion;
 
-import au.com.transport.tapservice.entity.ParsedRow;
+import au.com.transport.tapservice.entity.ingestion.ParsedRow;
 import lombok.Builder;
 import lombok.Getter;
 

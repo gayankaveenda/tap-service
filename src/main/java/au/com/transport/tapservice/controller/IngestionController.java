@@ -1,8 +1,8 @@
 package au.com.transport.tapservice.controller;
 
 import au.com.transport.tapservice.dto.IngestionResponse;
-import au.com.transport.tapservice.service.IngestionService;
-import au.com.transport.tapservice.util.IngestionSummary;
+import au.com.transport.tapservice.service.ingestion.IngestionService;
+import au.com.transport.tapservice.entity.ingestion.IngestionSummary;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

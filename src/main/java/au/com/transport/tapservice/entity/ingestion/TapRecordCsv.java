@@ -1,4 +1,4 @@
-package au.com.transport.tapservice.entity;
+package au.com.transport.tapservice.entity.ingestion;
 
 import com.opencsv.bean.CsvBindByPosition;
 import jakarta.validation.constraints.NotNull;

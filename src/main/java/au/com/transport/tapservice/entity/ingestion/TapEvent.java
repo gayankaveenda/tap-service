@@ -1,4 +1,4 @@
-package au.com.transport.tapservice.entity;
+package au.com.transport.tapservice.entity.ingestion;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -83,6 +83,7 @@ public class TapEvent {
         PENDING,      // Saved, not yet processed
         PROCESSED,    // Successfully matched into a trip
         UNMATCHED,    // TAP OFF with no preceding TAP ON — logged, skipped
+        CANCELED_DUPLICATE,      // Manually marked as canceled — will not process
         FAILED        // Processing error — will retry
     }
 }

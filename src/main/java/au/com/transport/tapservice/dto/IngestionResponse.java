@@ -1,6 +1,6 @@
 package au.com.transport.tapservice.dto;
 
-import au.com.transport.tapservice.util.IngestionSummary;
+import au.com.transport.tapservice.entity.ingestion.IngestionSummary;
 
 import java.util.List;
 

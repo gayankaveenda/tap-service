@@ -84,3 +84,8 @@ info:
 app:
   ingestion:
     batch-size: 100
+  processing:
+    scheduler:
+      fixed-delay-ms: 5000
+      page-size: 1000
+      orphan-cutoff-hours: 1

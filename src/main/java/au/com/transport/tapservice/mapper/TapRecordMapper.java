@@ -1,9 +1,9 @@
 package au.com.transport.tapservice.mapper;
 
 import au.com.transport.tapservice.config.PanTokeniser;
-import au.com.transport.tapservice.entity.TapEvent;
-import au.com.transport.tapservice.entity.TapRecordCsv;
-import au.com.transport.tapservice.entity.TapType;
+import au.com.transport.tapservice.entity.ingestion.TapEvent;
+import au.com.transport.tapservice.entity.ingestion.TapRecordCsv;
+import au.com.transport.tapservice.entity.ingestion.TapType;
 import au.com.transport.tapservice.exception.InvalidTapDataException;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
