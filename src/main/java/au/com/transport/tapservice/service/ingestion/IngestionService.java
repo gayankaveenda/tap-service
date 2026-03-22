@@ -122,7 +122,7 @@ public class IngestionService {
         failedBatch.add(failure);
 
         if (failedBatch.size() >= batchSize) {
-            log.warn("Flushing {} failed records for file={}", failedBatch.size(), sourceFile);
+            log.debug("Flushing {} failed records for file={}", failedBatch.size(), sourceFile);
             savedRows += flushFailureBatch(failedBatch);
             failedBatch.clear();
         }

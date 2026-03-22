@@ -25,7 +25,7 @@ public class OrphanedProcessingJob {
     @Value("${app.processing.scheduler.page-size:4}")
     private int pageSize;
 
-    @Value("${app.processing.scheduler.orphan-cutoff-hours:2}")
+    @Value("${app.processing.scheduler.orphan-cutoff-hours:10}")
     private int orphanCutoffHours;
 
     @Scheduled(cron = "0 0/2 * * * *") // every 30 mins
@@ -37,11 +37,11 @@ public class OrphanedProcessingJob {
         }
 
         try {
-            log.info("Starting Orphan Cleanup job - looking for candidates with cutoff {} hours", orphanCutoffHours);
+//            log.info("Starting Orphan Cleanup job - looking for candidates with cutoff {} hours", orphanCutoffHours);
 
 //            LocalDateTime cutoff = LocalDateTime.now().minusHours(orphanCutoffHours);
             //two minutes for our testing purposes, but in production this would be 2 hours or more depending on the expected delay for late tap offs
-            LocalDateTime testCutoff = LocalDateTime.now().minusMinutes(2);
+            LocalDateTime testCutoff = LocalDateTime.now().minusMinutes(orphanCutoffHours);
 
             List<TapEvent> orphans =
                     tapEventRepository.findOrphanCandidates(testCutoff, PageRequest.of(0, pageSize)); // > 2 hours

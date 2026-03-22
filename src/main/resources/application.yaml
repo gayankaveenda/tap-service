@@ -10,7 +10,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -41,6 +41,11 @@ spring:
     caffeine:
       # fare rules are tiny — cache forever, refresh hourly
       spec: maximumSize=100,expireAfterWrite=1h
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 server:
   port: 8080
@@ -89,9 +94,9 @@ info:
 
 app:
   ingestion:
-    batch-size: 100
+    batch-size: 1000
   processing:
     scheduler:
-      fixed-delay-ms: 5000
+      fixed-delay-ms: 10000
       page-size: 1000
-      orphan-cutoff-hours: 1
+      orphan-cutoff-hours: 3
