@@ -36,7 +36,7 @@ public interface TapEventRepository extends JpaRepository<TapEvent, Long> {
             SELECT t FROM TapEvent t
             WHERE t.status = 'PENDING'
             AND t.tapType = 'ON'
-            AND t.tappedAt < :cutoffTime
+            AND t.createdAt < :cutoffTime
             ORDER BY t.tappedAt ASC
             """)
     List<TapEvent> findOrphanCandidates(

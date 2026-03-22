@@ -1,5 +1,6 @@
 package au.com.transport.tapservice.mapper;
 
+import au.com.transport.tapservice.CommonUtils;
 import au.com.transport.tapservice.config.PanTokeniser;
 import au.com.transport.tapservice.entity.ingestion.TapEvent;
 import au.com.transport.tapservice.entity.ingestion.TapRecordCsv;
@@ -29,13 +30,18 @@ public class TapRecordMapper {
         record.setOriginalId(csv.getId());
         record.setTappedAt(parseDateTime(csv.getDateTimeUTC(), sourceFile, rowNumber));
         record.setTapType(getTapType(csv, sourceFile, rowNumber));
-        record.setStopId(csv.getStopId());
-        record.setCompanyId(csv.getCompanyId());
-        record.setBusId(csv.getBusId());
+        record.setStopId(CommonUtils.normalize(csv.getStopId()));
+        record.setCompanyId(CommonUtils.normalize(csv.getCompanyId()));
+        record.setBusId(CommonUtils.normalize(csv.getBusId()));
 
         //do i need to do a null check?
-        //TODO: I need to remove raw pan later
-        record.setPan(csv.getPan());
+        if (!CommonUtils.isNumericPan(csv.getPan())) {
+            throw new InvalidTapDataException(
+                    "File Name: %s, Row %d: PAN is null or empty"
+                            .formatted(sourceFile, rowNumber)
+            );
+        }
+//        record.setPan(CommonUtils.normalize(csv.getPan()));
 
         // Hash and mask immediately — raw PAN is discarded after this
         String panHash = panTokeniser.hash(csv.getPan());

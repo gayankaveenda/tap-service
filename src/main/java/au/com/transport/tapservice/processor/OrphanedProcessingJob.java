@@ -32,19 +32,22 @@ public class OrphanedProcessingJob {
     public void processOrphans() {
 
         if (!jobLock.tryLock()) {
-            log.info("Skipping Orphan Cleanup job - another job is running");
+            log.debug("Skipping Orphan Cleanup job - another job is running");
             return;
         }
 
         try {
             log.info("Starting Orphan Cleanup job - looking for candidates with cutoff {} hours", orphanCutoffHours);
-            LocalDateTime cutoff = LocalDateTime.now().minusHours(orphanCutoffHours);
+
+//            LocalDateTime cutoff = LocalDateTime.now().minusHours(orphanCutoffHours);
+            //two minutes for our testing purposes, but in production this would be 2 hours or more depending on the expected delay for late tap offs
+            LocalDateTime testCutoff = LocalDateTime.now().minusMinutes(2);
 
             List<TapEvent> orphans =
-                    tapEventRepository.findOrphanCandidates(cutoff, PageRequest.of(0, pageSize)); // > 2 hours
+                    tapEventRepository.findOrphanCandidates(testCutoff, PageRequest.of(0, pageSize)); // > 2 hours
 
             if (orphans.isEmpty()) {
-                log.info("Orphan Cleanup job - No orphan candidates found");
+                log.debug("Orphan Cleanup job - No orphan candidates found");
                 return;
             }
 

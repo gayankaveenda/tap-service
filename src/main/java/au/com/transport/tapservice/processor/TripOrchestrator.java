@@ -8,6 +8,7 @@ import au.com.transport.tapservice.repository.trip.TripRepository;
 import au.com.transport.tapservice.service.trip.TripStateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -23,10 +24,14 @@ public class TripOrchestrator {
     private final TripRepository tripRepository;
     private final TripStateService tripStateService;
 
+    @Value("${app.ingestion.batch-size}")
+    private int batchSize;
+
     public ProcessingResult processBatch(List<TapEvent> pendingEvents) {
         int tripsCreated = 0;
         int unmatched = 0;
         int errors = 0;
+        int previouslyProcessed = 0;
 
         List<TapEvent> tapOffs = pendingEvents.stream()
                 .filter(e -> e.getTapType() == TapType.OFF)
@@ -35,8 +40,11 @@ public class TripOrchestrator {
         //current tapOn
         TapEvent tapOn = null;
 
+        //successful trip list
+        List<Trip> tripList = new ArrayList<>();
+
         //failed events to be marked as FAILED at the time of processing
-        List<TapEvent> failedEvents = new ArrayList<>();
+        List<TapEvent> tapEventList = new ArrayList<>();
 
         // Step 1 — process TAP OFFs, try to match to existing PENDING TAP ONs
         for (TapEvent tapOff : tapOffs) {
@@ -46,10 +54,11 @@ public class TripOrchestrator {
                         .findPendingTapOn(tapOff.getPanHash(), tapOff.getBusId());
 
                 if (matchedOn.isEmpty()) {
-                    log.warn("Unmatched TAP OFF: id={}, stop={}, pan={}",
+                    log.debug("Unmatched TAP OFF: id={}, stop={}, pan={}",
                             tapOff.getId(), tapOff.getStopId(), tapOff.getMaskedPan());
                     tapOff.setStatus(TapEvent.TapEventStatus.UNMATCHED);
-                    tapEventRepository.save(tapOff);
+                    tapEventList.add(tapOff);
+//                    tapEventRepository.save(tapOff);
                     unmatched++;
                     continue;
                 }
@@ -60,27 +69,42 @@ public class TripOrchestrator {
                 //clean up the rest of the matched taps if there are more than 1
                 if (!matchedOn.isEmpty()) {
                     matchedOn.forEach(tap -> tap.setStatus(TapEvent.TapEventStatus.CANCELED_DUPLICATE));
-                    tapEventRepository.saveAll(matchedOn);
+                    tapEventList.addAll(matchedOn);
+//                    tapEventRepository.saveAll(matchedOn);
                 }
 
                 Trip trip = tripStateService.resolve(tapOn, tapOff);
 
+                //check if trip has negative duration, which means tapOff is before tapOn, which is invalid data
+                if (trip.getDurationSecs() < 0) {
+                    log.debug("Invalid trip with negative duration: tapOnId={}, tapOffId={}, pan={}, busId={}",
+                            tapOn.getId(), tapOff.getId(), tapOn.getMaskedPan(), tapOn.getBusId());
+                    tapOff.setStatus(TapEvent.TapEventStatus.INVALID);
+                    tapEventList.add(tapOff);
+//                    tapEventRepository.save(tapOff);
+                    errors++;
+                    continue;
+                }
+
                 tapOn.setStatus(TapEvent.TapEventStatus.PROCESSED);
                 tapOff.setStatus(TapEvent.TapEventStatus.PROCESSED);
-                tapEventRepository.save(tapOn);
-                tapEventRepository.save(tapOff);
+//                tapEventRepository.save(tapOn);
+//                tapEventRepository.save(tapOff);
+
+                tapEventList.add(tapOff);
+                tapEventList.add(tapOn);
 
                 // Idempotency — skip if trip already created for this tap ON
                 if (tripRepository.existsByTapOnEventId(tapOn.getId())) {
                     log.debug("Duplicate — trip already exists for tapOnId={}", tapOn.getId());
+                    previouslyProcessed++;
                     continue;
                 }
 
                 //otherwise, save the trip
-                tripRepository.save(trip);
-
+//                tripRepository.save(trip);
+                tripList.add(trip);
                 tripsCreated++;
-
             } catch (Exception e) {
                 log.error("Failed to process TAP OFF id={}: {}", tapOff.getId(), e.getMessage(), e);
                 tapOff.setStatus(TapEvent.TapEventStatus.FAILED);
@@ -88,30 +112,36 @@ public class TripOrchestrator {
                 if (tapOn != null) {
                     tapOn.setStatus(TapEvent.TapEventStatus.FAILED);
                 }
+                tapEventList.add(tapOn);
                 errors++;
             }
+
+            //save all trips and tap events in batch to optimize DB calls
+            flushTripEventBatch(tripList,false);
+            flushTapEventBatch(tapEventList,false);
         }
 
-        //save all failed events in batch to optimize DB calls
-        flushTripEventBatch(failedEvents);
-
-        log.info("Batch processed: tripsCreated={}, unmatched={}, errors={}",
-                tripsCreated, unmatched, errors);
-
-        return new ProcessingResult("PENDING_TAPS", tripsCreated, unmatched, errors);
+        //save all remaining trips and tap events in batch to optimize DB calls
+        flushTripEventBatch(tripList, true);
+        flushTapEventBatch(tapEventList, true);
+        return new ProcessingResult("PENDING_TAPS", tripsCreated, unmatched, previouslyProcessed, errors);
     }
 
     public ProcessingResult processOrphanedTapOns(List<TapEvent> pendingEvents) {
         int tripsCreated = 0;
         int unmatched = 0;
         int errors = 0;
+        int previouslyProcessed = 0;
 
         List<TapEvent> tapOns = pendingEvents.stream()
                 .filter(e -> e.getTapType() == TapType.ON)
                 .toList();
 
         //failed events to be marked as FAILED at the time of processing
-        List<TapEvent> failedEvents = new ArrayList<>();
+        List<TapEvent> tapEventList = new ArrayList<>();
+
+        //successful trip list
+        List<Trip> tripList = new ArrayList<>();
 
         // Step 2 — process TAP ONs that are still PENDING (no TAP OFF matched them yet)
         // Reload to get updated statuses after step 1
@@ -138,39 +168,59 @@ public class TripOrchestrator {
                 // Idempotency check (IMPORTANT)
                 if (tripRepository.existsByTapOnEventId(current.getId())) {
                     current.setStatus(TapEvent.TapEventStatus.PROCESSED);
-                    tapEventRepository.save(current);
+//                    tapEventRepository.save(current);
+                    tapEventList.add(current);
+                    previouslyProcessed++;
                     continue;
                 }
 
                 //truly orphaned tapOn, resolve as INCOMPLETE
                 Trip incomplete = tripStateService.resolveIncomplete(current);
-                tripRepository.save(incomplete);
-                current.setStatus(TapEvent.TapEventStatus.PROCESSED);
-                tapEventRepository.save(current);
 
+                //check if trip has negative duration, which means tapOff is before tapOn, which is invalid data
+                if (incomplete.getDurationSecs() < 0) {
+                    current.setStatus(TapEvent.TapEventStatus.INVALID);
+                    tapEventList.add(current);
+                    errors++;
+                    continue;
+                }
+
+                //save the trip and mark the tapOn as PROCESSED
+//                tripRepository.save(incomplete);
+                tripList.add(incomplete);
                 tripsCreated++;
+
+                current.setStatus(TapEvent.TapEventStatus.PROCESSED);
+//                tapEventRepository.save(current);
+                tapEventList.add(current);
             } catch (Exception e) {
                 log.error("Failed to process PENDING tapOn id={}: {}", current.getId(), e.getMessage(), e);
                 current.setStatus(TapEvent.TapEventStatus.FAILED);
-                failedEvents.add(current);
+                tapEventList.add(current);
                 errors++;
             }
 
-            //save all failed events in batch to optimize DB calls
-            flushTripEventBatch(failedEvents);
+            //save all trips and tap events in batch to optimize DB calls
+            flushTripEventBatch(tripList, true);
+            flushTapEventBatch(tapEventList, true);
         }
-
-        log.info("Batch processed: tripsCreated={}, unmatched={}, errors={}",
-                tripsCreated, unmatched, errors);
-
-        return new ProcessingResult("ORPHAN_CLEANUP", tripsCreated, unmatched, errors);
+        return new ProcessingResult("ORPHAN_CLEANUP", tripsCreated, unmatched, previouslyProcessed, errors);
     }
 
-    public record ProcessingResult(String jobName, int tripsCreated, int unmatched, int errors) {
+    public record ProcessingResult(String jobName, int tripsCreated, int unmatched, int previouslyProcessed, int errors) {
     }
 
-    protected void flushTripEventBatch(List<TapEvent> batch) {
-        tapEventRepository.saveAll(batch);
-        log.debug("Batch saved: size={}", batch.size());
+    protected void flushTapEventBatch(List<TapEvent> batch, boolean force) {
+        if(!batch.isEmpty() && ((batch.size() >= batchSize) || force)) {
+            tapEventRepository.saveAll(batch);
+            batch.clear();
+        }
+    }
+
+    protected void flushTripEventBatch(List<Trip> batch, boolean force) {
+        if(!batch.isEmpty() && ((batch.size() >= batchSize) || force)) {
+            tripRepository.saveAll(batch);
+            batch.clear();
+        }
     }
 }

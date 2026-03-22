@@ -36,6 +36,12 @@ spring:
     virtual:
       enabled: true   # Java 21 virtual threads (safe default)
 
+  cache:
+    type: caffeine
+    caffeine:
+      # fare rules are tiny — cache forever, refresh hourly
+      spec: maximumSize=100,expireAfterWrite=1h
+
 server:
   port: 8080
   servlet:

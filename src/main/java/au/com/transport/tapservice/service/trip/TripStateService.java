@@ -1,5 +1,6 @@
 package au.com.transport.tapservice.service.trip;
 
+import au.com.transport.tapservice.CommonUtils;
 import au.com.transport.tapservice.entity.ingestion.TapEvent;
 import au.com.transport.tapservice.entity.trip.Trip;
 import au.com.transport.tapservice.entity.trip.TripStatus;
@@ -43,7 +44,7 @@ public class TripStateService {
 
         long durationSecs = Duration.between(tapOn.getTappedAt(), tapOff.getTappedAt()).getSeconds();
 
-        log.info("Trip resolved: status={}, from={}, to={}, charge={}, pan={}",
+        log.debug("Trip resolved: status={}, from={}, to={}, charge={}, pan={}",
                 status, tapOn.getStopId(), tapOff.getStopId(),
                 formatCharge(charge), tapOn.getMaskedPan());
 
@@ -51,13 +52,13 @@ public class TripStateService {
                 .started(tapOn.getTappedAt())
                 .finished(tapOff.getTappedAt())
                 .durationSecs(durationSecs)
-                .fromStopId(tapOn.getStopId())
-                .toStopId(tapOff.getStopId())
+                .fromStopId(CommonUtils.normalize(tapOn.getStopId()))
+                .toStopId(CommonUtils.normalize(tapOff.getStopId()))
                 .chargeAmount(charge)
-                .companyId(tapOn.getCompanyId())
-                .busId(tapOn.getBusId())
-                .maskedPan(tapOn.getMaskedPan())
-                .panHash(tapOn.getPanHash())
+                .companyId(CommonUtils.normalize(tapOn.getCompanyId()))
+                .busId(CommonUtils.normalize(tapOn.getBusId()))
+                .maskedPan(CommonUtils.normalize(tapOn.getMaskedPan()))
+                .panHash(CommonUtils.normalize(tapOn.getPanHash()))
                 .status(status)
                 .tapOnEventId(tapOn.getId())
                 .tapOffEventId(tapOff.getId())
@@ -71,7 +72,7 @@ public class TripStateService {
     public Trip resolveIncomplete(TapEvent tapOn) {
         BigDecimal maxFare = fareCalculatorService.getMaxFare(tapOn.getStopId().trim());
 
-        log.info("Trip INCOMPLETE: from={}, maxFare={}, pan={}",
+        log.debug("Trip INCOMPLETE: from={}, maxFare={}, pan={}",
                 tapOn.getStopId(), formatCharge(maxFare), tapOn.getMaskedPan());
 
         return Trip.builder()

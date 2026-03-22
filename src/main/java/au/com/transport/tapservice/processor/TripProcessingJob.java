@@ -28,14 +28,16 @@ public class TripProcessingJob {
     public void processPendingTaps() {
 
         if (!jobLock.tryLock()) {
-            log.info("Skipping Match Pending job - another job is running");
+            log.debug("Skipping Match Pending job - another job is running");
             return;
         }
 
         try {
             List<TapEvent> batch = tapEventRepository.findPendingBatch(PageRequest.of(0, pageSize));
 
-            if (batch.isEmpty()) return;
+            if (batch.isEmpty()) {
+                return;
+            }
 
             log.info("Match Pending job processing {} events", batch.size());
 
