@@ -14,14 +14,14 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        default_schema: tappay
+        default_schema: tap-service
         format_sql: true
         jdbc:
           time_zone: UTC
 
   flyway:
     enabled: true
-    schemas: tappay
+    schemas: tap-service-test
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: true
@@ -35,6 +35,17 @@ spring:
   threads:
     virtual:
       enabled: true   # Java 21 virtual threads (safe default)
+
+  cache:
+    type: caffeine
+    caffeine:
+      # fare rules are tiny — cache forever, refresh hourly
+      spec: maximumSize=100,expireAfterWrite=1h
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 server:
   port: 8080
@@ -71,9 +82,8 @@ springdoc:
 logging:
   level:
     org.springframework.web: INFO
-    au.com.rdti.northstar: DEBUG
     org.flywaydb: INFO
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: error
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
 info:
@@ -81,3 +91,12 @@ info:
     name: Tap & Go API
     version: 1.0.0
     owner: GK Corp
+
+app:
+  ingestion:
+    batch-size: 1000
+  processing:
+    scheduler:
+      fixed-delay-ms: 10000
+      page-size: 1000
+      orphan-cutoff-hours: 3
