@@ -1,11 +1,11 @@
-package au.com.transport.tapservice.service;
+package au.com.transport.tapservice.service.ingestion;
 
-import au.com.transport.tapservice.entity.FailedIngestionRecord;
-import au.com.transport.tapservice.entity.ParsedRow;
-import au.com.transport.tapservice.entity.TapEvent;
-import au.com.transport.tapservice.repository.FailedIngestionRepository;
-import au.com.transport.tapservice.repository.TapEventRepository;
-import au.com.transport.tapservice.util.IngestionSummary;
+import au.com.transport.tapservice.entity.ingestion.FailedIngestion;
+import au.com.transport.tapservice.entity.ingestion.ParsedRow;
+import au.com.transport.tapservice.entity.ingestion.TapEvent;
+import au.com.transport.tapservice.repository.ingestion.FailedIngestionRepository;
+import au.com.transport.tapservice.repository.ingestion.TapEventRepository;
+import au.com.transport.tapservice.entity.ingestion.IngestionSummary;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -32,7 +32,7 @@ public class IngestionService {
         log.info("Ingestion started: file={}", sourceFile);
 
         List<TapEvent> successBatch = new ArrayList<>();
-        List<FailedIngestionRecord> failedBatch = new ArrayList<>();
+        List<FailedIngestion> failedBatch = new ArrayList<>();
 
         int savedRows = 0;
         int skippedRows = 0;
@@ -45,7 +45,7 @@ public class IngestionService {
 
         //convert existing failures to FailedIngestionRecord for batch saving
         for (ParsedRow failedRecord : ingestionRecord.getFailures()) {
-            processFailedBatch(failedRecord.rawRow(), failedRecord, new Exception(failedRecord.failureReason()), failedBatch);
+            failedRows += processFailedBatch(failedRecord.rawRow(), failedRecord, new Exception(failedRecord.failureReason()), failedBatch);
         }
 
         for (ParsedRow parsedRow : ingestionRecord.getSuccessfulRecords()) {
@@ -77,13 +77,13 @@ public class IngestionService {
                         ParsedRow.failure(parsedRow.rawRow(), parsedRow.rowNumber(), e.getMessage())
                 );
 
-                processFailedBatch(sourceFile, parsedRow, e, failedBatch);
+                failedRows += processFailedBatch(sourceFile, parsedRow, e, failedBatch);
             }
         }
 
         // Flush remaining tail
         if (!successBatch.isEmpty()) {
-            log.info("Flushing final batch of {} records for file={}", successBatch.size(), sourceFile);
+            log.debug("Flushing final batch of {} records for file={}", successBatch.size(), sourceFile);
             savedRows += flushSuccessfulBatch(successBatch);
         }
 
@@ -116,19 +116,21 @@ public class IngestionService {
 
     }
 
-    private void processFailedBatch(String sourceFile, ParsedRow parsedRow, Exception e, List<FailedIngestionRecord> failedBatch) {
-        FailedIngestionRecord failure = createFailedIngestionRecord(sourceFile, parsedRow, e);
+    private int processFailedBatch(String sourceFile, ParsedRow parsedRow, Exception e, List<FailedIngestion> failedBatch) {
+        int savedRows = 0;
+        FailedIngestion failure = createFailedIngestionRecord(sourceFile, parsedRow, e);
         failedBatch.add(failure);
 
         if (failedBatch.size() >= batchSize) {
-            log.warn("Flushing {} failed records for file={}", failedBatch.size(), sourceFile);
-            flushFailureBatch(failedBatch);
+            log.debug("Flushing {} failed records for file={}", failedBatch.size(), sourceFile);
+            savedRows += flushFailureBatch(failedBatch);
             failedBatch.clear();
         }
+        return savedRows;
     }
 
-    private static @NonNull FailedIngestionRecord createFailedIngestionRecord(String sourceFile, ParsedRow parsedRow, Exception e) {
-        FailedIngestionRecord failure = new FailedIngestionRecord();
+    private static @NonNull FailedIngestion createFailedIngestionRecord(String sourceFile, ParsedRow parsedRow, Exception e) {
+        FailedIngestion failure = new FailedIngestion();
         failure.setSourceFile(sourceFile);
         failure.setRowNumber(parsedRow.rowNumber());
         failure.setRawRow(parsedRow.rawRow());
@@ -142,7 +144,7 @@ public class IngestionService {
         return batch.size();
     }
 
-    protected int flushFailureBatch(List<FailedIngestionRecord> batch) {
+    protected int flushFailureBatch(List<FailedIngestion> batch) {
         failedIngestionRepository.saveAll(batch);
         log.debug("Batch saved: size={}", batch.size());
         return batch.size();

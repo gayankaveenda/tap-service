@@ -1,4 +1,4 @@
-package au.com.transport.tapservice.entity;
+package au.com.transport.tapservice.entity.ingestion;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class FailedIngestionRecord {
+public class FailedIngestion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

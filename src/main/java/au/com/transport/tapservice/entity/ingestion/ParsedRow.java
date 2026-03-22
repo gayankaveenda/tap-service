@@ -1,4 +1,4 @@
-package au.com.transport.tapservice.entity;
+package au.com.transport.tapservice.entity.ingestion;
 
 /**
  * Represents the result of parsing a single CSV row into a TapEvent.

@@ -1,8 +1,8 @@
-package au.com.transport.tapservice.service;
+package au.com.transport.tapservice.service.ingestion;
 
-import au.com.transport.tapservice.entity.ParsedRow;
-import au.com.transport.tapservice.entity.TapEvent;
-import au.com.transport.tapservice.entity.TapRecordCsv;
+import au.com.transport.tapservice.entity.ingestion.ParsedRow;
+import au.com.transport.tapservice.entity.ingestion.TapEvent;
+import au.com.transport.tapservice.entity.ingestion.TapRecordCsv;
 import au.com.transport.tapservice.mapper.TapRecordMapper;
 import com.opencsv.CSVReader;
 import org.springframework.stereotype.Component;

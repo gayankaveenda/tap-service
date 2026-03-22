@@ -1,4 +1,4 @@
-package au.com.transport.tapservice.entity;
+package au.com.transport.tapservice.entity.ingestion;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -48,12 +48,12 @@ public class TapEvent {
     @Column(name = "bus_id", nullable = false, length = 50)
     private String busId;
 
-    /**
-     * Primary Account Number — the card identifier.
-     * Stored as-is; masking happens at the API response layer.
-     */
+//    /**
+//     * Primary Account Number — the card identifier.
+//     * Stored as-is; masking happens at the API response layer.
+//     */
 //    @Column(name = "pan", nullable = false, length = 50)
-    private String pan;
+//    private String pan;
 
     /**
      * SHA-256 hash of (pan + salt).
@@ -83,6 +83,8 @@ public class TapEvent {
         PENDING,      // Saved, not yet processed
         PROCESSED,    // Successfully matched into a trip
         UNMATCHED,    // TAP OFF with no preceding TAP ON — logged, skipped
+        CANCELED_DUPLICATE,      // Manually marked as canceled — will not process
+        INVALID,      // Invalid data (e.g. negative trip duration) — logged, skipped
         FAILED        // Processing error — will retry
     }
 }
