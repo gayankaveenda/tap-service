@@ -44,4 +44,6 @@ public interface TapEventRepository extends JpaRepository<TapEvent, Long> {
             org.springframework.data.domain.Pageable pageable
     );
 
+    @Query("SELECT t FROM TapEvent t WHERE t.status = 'PENDING' ORDER BY t.tappedAt ASC")
+    List<TapEvent> findAllPending();
 }
