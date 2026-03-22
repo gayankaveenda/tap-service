@@ -11,9 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -41,10 +39,13 @@ public class TripOrchestrator {
         TapEvent tapOn = null;
 
         //successful trip list
-        List<Trip> tripList = new ArrayList<>();
+//        List<Trip> tripList = new ArrayList<>();
+        Map<Long, Trip> tripList = new LinkedHashMap<>();
+
 
         //failed events to be marked as FAILED at the time of processing
-        List<TapEvent> tapEventList = new ArrayList<>();
+//        List<TapEvent> tapEventList = new ArrayList<>();
+        Map<Long, TapEvent> tapEventList = new LinkedHashMap<>();
 
         // Step 1 — process TAP OFFs, try to match to existing PENDING TAP ONs
         for (TapEvent tapOff : tapOffs) {
@@ -57,7 +58,7 @@ public class TripOrchestrator {
                     log.debug("Unmatched TAP OFF: id={}, stop={}, pan={}",
                             tapOff.getId(), tapOff.getStopId(), tapOff.getMaskedPan());
                     tapOff.setStatus(TapEvent.TapEventStatus.UNMATCHED);
-                    tapEventList.add(tapOff);
+                    tapEventList.put(tapOff.getId(), tapOff);
 //                    tapEventRepository.save(tapOff);
                     unmatched++;
                     continue;
@@ -69,7 +70,7 @@ public class TripOrchestrator {
                 //clean up the rest of the matched taps if there are more than 1
                 if (!matchedOn.isEmpty()) {
                     matchedOn.forEach(tap -> tap.setStatus(TapEvent.TapEventStatus.CANCELED_DUPLICATE));
-                    tapEventList.addAll(matchedOn);
+                    matchedOn.forEach(tap -> tapEventList.put(tap.getId(), tap));
 //                    tapEventRepository.saveAll(matchedOn);
                 }
 
@@ -80,7 +81,7 @@ public class TripOrchestrator {
                     log.debug("Invalid trip with negative duration: tapOnId={}, tapOffId={}, pan={}, busId={}",
                             tapOn.getId(), tapOff.getId(), tapOn.getMaskedPan(), tapOn.getBusId());
                     tapOff.setStatus(TapEvent.TapEventStatus.INVALID);
-                    tapEventList.add(tapOff);
+                    tapEventList.put(tapOff.getId(), tapOff);
 //                    tapEventRepository.save(tapOff);
                     errors++;
                     continue;
@@ -91,8 +92,8 @@ public class TripOrchestrator {
 //                tapEventRepository.save(tapOn);
 //                tapEventRepository.save(tapOff);
 
-                tapEventList.add(tapOff);
-                tapEventList.add(tapOn);
+                tapEventList.put(tapOff.getId(), tapOff);
+                tapEventList.put(tapOn.getId(), tapOn);
 
                 // Idempotency — skip if trip already created for this tap ON
                 if (tripRepository.existsByTapOnEventId(tapOn.getId())) {
@@ -103,7 +104,8 @@ public class TripOrchestrator {
 
                 //otherwise, save the trip
 //                tripRepository.save(trip);
-                tripList.add(trip);
+                //trip doesnt have an id until its saved, so we can use tapOn id as the key in the map to save the trip later in batch
+                tripList.put(tapOn.getId(), trip);
                 tripsCreated++;
             } catch (Exception e) {
                 log.error("Failed to process TAP OFF id={}: {}", tapOff.getId(), e.getMessage(), e);
@@ -111,14 +113,14 @@ public class TripOrchestrator {
 
                 if (tapOn != null) {
                     tapOn.setStatus(TapEvent.TapEventStatus.FAILED);
+                    tapEventList.put(tapOn.getId(), tapOn);
                 }
-                tapEventList.add(tapOn);
                 errors++;
             }
 
             //save all trips and tap events in batch to optimize DB calls
-            flushTripEventBatch(tripList,false);
-            flushTapEventBatch(tapEventList,false);
+            flushTripEventBatch(tripList, false);
+            flushTapEventBatch(tapEventList, false);
         }
 
         //save all remaining trips and tap events in batch to optimize DB calls
@@ -138,10 +140,12 @@ public class TripOrchestrator {
                 .toList();
 
         //failed events to be marked as FAILED at the time of processing
-        List<TapEvent> tapEventList = new ArrayList<>();
+//        List<TapEvent> tapEventList = new ArrayList<>();
+        Map<Long, TapEvent> tapEventList = new LinkedHashMap<>();
 
         //successful trip list
-        List<Trip> tripList = new ArrayList<>();
+//        List<Trip> tripList = new ArrayList<>();
+        Map<Long, Trip> tripList = new LinkedHashMap<>();
 
         // Step 2 — process TAP ONs that are still PENDING (no TAP OFF matched them yet)
         // Reload to get updated statuses after step 1
@@ -169,7 +173,7 @@ public class TripOrchestrator {
                 if (tripRepository.existsByTapOnEventId(current.getId())) {
                     current.setStatus(TapEvent.TapEventStatus.PROCESSED);
 //                    tapEventRepository.save(current);
-                    tapEventList.add(current);
+                    tapEventList.put(current.getId(), current);
                     previouslyProcessed++;
                     continue;
                 }
@@ -180,46 +184,49 @@ public class TripOrchestrator {
                 //check if trip has negative duration, which means tapOff is before tapOn, which is invalid data
                 if (incomplete.getDurationSecs() < 0) {
                     current.setStatus(TapEvent.TapEventStatus.INVALID);
-                    tapEventList.add(current);
+                    tapEventList.put(current.getId(), current);
                     errors++;
                     continue;
                 }
 
                 //save the trip and mark the tapOn as PROCESSED
 //                tripRepository.save(incomplete);
-                tripList.add(incomplete);
+                tripList.put(current.getId(), incomplete);
                 tripsCreated++;
 
                 current.setStatus(TapEvent.TapEventStatus.PROCESSED);
 //                tapEventRepository.save(current);
-                tapEventList.add(current);
+                tapEventList.put(current.getId(), current);
             } catch (Exception e) {
                 log.error("Failed to process PENDING tapOn id={}: {}", current.getId(), e.getMessage(), e);
                 current.setStatus(TapEvent.TapEventStatus.FAILED);
-                tapEventList.add(current);
+                tapEventList.put(current.getId(), current);
                 errors++;
             }
 
             //save all trips and tap events in batch to optimize DB calls
-            flushTripEventBatch(tripList, true);
-            flushTapEventBatch(tapEventList, true);
+            flushTripEventBatch(tripList, false);
+            flushTapEventBatch(tapEventList, false);
         }
+        //save all trips and tap events in batch to optimize DB calls
+        flushTripEventBatch(tripList, true);
+        flushTapEventBatch(tapEventList, true);
         return new ProcessingResult("ORPHAN_CLEANUP", tripsCreated, unmatched, previouslyProcessed, errors);
     }
 
     public record ProcessingResult(String jobName, int tripsCreated, int unmatched, int previouslyProcessed, int errors) {
     }
 
-    protected void flushTapEventBatch(List<TapEvent> batch, boolean force) {
-        if(!batch.isEmpty() && ((batch.size() >= batchSize) || force)) {
-            tapEventRepository.saveAll(batch);
+    protected void flushTapEventBatch(Map<Long, TapEvent> batch, boolean force) {
+        if(!batch.isEmpty() && (batch.size() >= batchSize || force)) {
+            tapEventRepository.saveAll(batch.values());
             batch.clear();
         }
     }
 
-    protected void flushTripEventBatch(List<Trip> batch, boolean force) {
-        if(!batch.isEmpty() && ((batch.size() >= batchSize) || force)) {
-            tripRepository.saveAll(batch);
+    protected void flushTripEventBatch(Map<Long, Trip> batch, boolean force) {
+        if(!batch.isEmpty() && (batch.size() >= batchSize || force)) {
+            tripRepository.saveAll(batch.values());
             batch.clear();
         }
     }

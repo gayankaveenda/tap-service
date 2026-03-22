@@ -51,11 +51,14 @@ public class OrphanedProcessingJob {
                 return;
             }
 
-            log.info("Orphan Cleanup job - processing {} events", orphans.size());
+//            log.info("Orphan Cleanup job - processing {} events", orphans.size());
 
             TripOrchestrator.ProcessingResult processingResult = tripOrchestrator.processOrphanedTapOns(orphans);
 
-            log.info("Orphan Cleanup job complete: {}", processingResult);
+            //log only if one of the counts is greater than 0 to reduce noise in logs
+            if (processingResult.tripsCreated() > 0 || processingResult.unmatched() > 0 || processingResult.errors() > 0 || processingResult.previouslyProcessed() > 0) {
+                log.info("Orphan Cleanup job complete: {}", processingResult);
+            }
 
         } finally {
             jobLock.unlock();

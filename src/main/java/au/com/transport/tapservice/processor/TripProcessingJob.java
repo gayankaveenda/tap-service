@@ -39,11 +39,13 @@ public class TripProcessingJob {
                 return;
             }
 
-            log.info("Match Pending job processing {} events", batch.size());
+//            log.info("Match Pending job processing {} events", batch.size());
 
             TripOrchestrator.ProcessingResult processingResult = tripOrchestrator.processBatch(batch);
-
-            log.info("Match Pending job complete: {}", processingResult);
+            //log only if one of the counts is greater than 0 to reduce noise in logs
+            if (processingResult.tripsCreated() > 0 || processingResult.unmatched() > 0 || processingResult.errors() > 0 || processingResult.previouslyProcessed() > 0) {
+                log.info("Match Pending job complete: {}", processingResult);
+            }
 
         } finally {
             jobLock.unlock();
