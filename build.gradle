@@ -11,7 +11,8 @@ description = 'tap-service'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(21) // uncomment jacoco toolVersion for JAVA 21
+//        languageVersion = JavaLanguageVersion.of(24) // also uncomment jacoco toolVersion for JAVA 24
     }
 }
 
@@ -76,7 +77,8 @@ tasks.jacocoTestReport {
 }
 
 jacoco {
-    toolVersion = '0.8.12'
+    toolVersion = '0.8.12' // for JAVA 21
+//    toolVersion = '0.8.13' // for JAVA 24
 }
 
 configurations {
