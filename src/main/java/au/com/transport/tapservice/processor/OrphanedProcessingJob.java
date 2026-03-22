@@ -25,10 +25,10 @@ public class OrphanedProcessingJob {
     @Value("${app.processing.scheduler.page-size:4}")
     private int pageSize;
 
-    @Value("${app.processing.scheduler.orphan-cutoff-hours:10}")
-    private int orphanCutoffHours;
+    @Value("${app.processing.scheduler.orphan-cutoff-minutes:3}")
+    private int orphanCutoffMinutes;
 
-    @Scheduled(cron = "0 0/2 * * * *") // every 30 mins
+    @Scheduled(cron = "0 0/2 * * * *")
     public void processOrphans() {
 
         if (!jobLock.tryLock()) {
@@ -37,11 +37,8 @@ public class OrphanedProcessingJob {
         }
 
         try {
-//            log.info("Starting Orphan Cleanup job - looking for candidates with cutoff {} hours", orphanCutoffHours);
-
-//            LocalDateTime cutoff = LocalDateTime.now().minusHours(orphanCutoffHours);
             //two minutes for our testing purposes, but in production this would be 2 hours or more depending on the expected delay for late tap offs
-            LocalDateTime testCutoff = LocalDateTime.now().minusMinutes(orphanCutoffHours);
+            LocalDateTime testCutoff = LocalDateTime.now().minusMinutes(orphanCutoffMinutes);
 
             List<TapEvent> orphans =
                     tapEventRepository.findOrphanCandidates(testCutoff, PageRequest.of(0, pageSize)); // > 2 hours
@@ -50,8 +47,6 @@ public class OrphanedProcessingJob {
                 log.debug("Orphan Cleanup job - No orphan candidates found");
                 return;
             }
-
-//            log.info("Orphan Cleanup job - processing {} events", orphans.size());
 
             TripOrchestrator.ProcessingResult processingResult = tripOrchestrator.processOrphanedTapOns(orphans);
 

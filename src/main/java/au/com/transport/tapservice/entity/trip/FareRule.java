@@ -20,8 +20,7 @@ import java.math.BigDecimal;
 public class FareRule {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "fare_rule_seq")
-    @SequenceGenerator(name = "fare_rule_seq", sequenceName = "fare_rule_seq", allocationSize = 10)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     @Column(name = "from_stop_id", nullable = false, length = 20)
