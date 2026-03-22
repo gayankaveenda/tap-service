@@ -1,0 +1,53 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:17:///testdb?TC_REUSABLE=false
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    username: test
+    password: test
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        default_schema: public       # override main schema for tests
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: false                   # ddl-auto handles schema in tests
+
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=100,expireAfterWrite=1h
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+server:
+  port: 0                            # random port
+  servlet:
+    context-path: /api
+
+management:
+  server:
+    port: 0
+
+app:
+  ingestion:
+    batch-size: 100
+  processing:
+    scheduler:
+      fixed-delay-ms: 999999999     # disable scheduler — trigger manually in tests
+      page-size: 1000
+      orphan-cutoff-minutes: 3
+  security:
+    pan-salt: integration-test-salt
+
+logging:
+  level:
+    au.com.transport: DEBUG
+    org.hibernate.SQL: WARN
