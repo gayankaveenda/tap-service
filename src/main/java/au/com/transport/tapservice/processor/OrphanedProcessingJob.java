@@ -28,7 +28,7 @@ public class OrphanedProcessingJob {
     @Value("${app.processing.scheduler.orphan-cutoff-minutes:3}")
     private int orphanCutoffMinutes;
 
-    @Scheduled(cron = "0 0/2 * * * *") // every 30 mins
+    @Scheduled(cron = "0 0/2 * * * *")
     public void processOrphans() {
 
         if (!jobLock.tryLock()) {
